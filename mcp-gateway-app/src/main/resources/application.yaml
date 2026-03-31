@@ -1,0 +1,76 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: mcp-guardian
+  # threads.virtual.enabled: true  # Uncomment when running on Java 21+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+# ==========================================
+# MCP Guardian Configuration
+# ==========================================
+guardian:
+  proxy:
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+    max-retries: 2
+
+  # Downstream MCP Server Registry
+  servers:
+    db-tools:
+      name: "Database Tools Server"
+      url: "http://localhost:3001"
+      health-check-url: "http://localhost:3001/health"
+      enabled: true
+    file-tools:
+      name: "File System Tools Server"
+      url: "http://localhost:3002"
+      health-check-url: "http://localhost:3002/health"
+      enabled: true
+    code-tools:
+      name: "Code Analysis Tools Server"
+      url: "http://localhost:3003"
+      health-check-url: "http://localhost:3003/health"
+      enabled: false
+
+  # Policy Engine Rules
+  policy:
+    default-action: ALLOW
+    rules:
+      - name: "block-destructive-sql"
+        description: "Block DROP/TRUNCATE commands for non-admin users"
+        action: DENY
+        methods:
+          - "tools/call"
+        keywords:
+          - "drop"
+          - "truncate"
+          - "delete from"
+        roles:
+          - "admin"
+          - "dba"
+
+      - name: "block-file-delete"
+        description: "Block file deletion tools"
+        action: DENY
+        methods:
+          - "tools/call"
+        keywords:
+          - "delete_file"
+          - "rm -rf"
+          - "remove_directory"
+        roles:
+          - "admin"
+
+# Structured JSON logging for ELK/Aliyun SLS
+logging:
+  pattern:
+    console: '{"timestamp":"%d{ISO8601}","level":"%p","logger":"%c","thread":"%t","message":"%m"}%n'
+  level:
+    root: INFO
+    com.guardian: DEBUG
+    AUDIT: INFO
