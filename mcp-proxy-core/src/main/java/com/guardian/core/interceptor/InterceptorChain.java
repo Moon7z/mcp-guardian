@@ -20,8 +20,8 @@ public class InterceptorChain {
                 .sorted(Comparator.comparingInt(McpInterceptor::getOrder))
                 .toList();
         log.info("Initialized interceptor chain with {} interceptors: {}",
-                interceptors.size(),
-                interceptors.stream().map(i -> i.getClass().getSimpleName()).toList());
+                this.interceptors.size(),
+                this.interceptors.stream().map(i -> i.getClass().getSimpleName()).toList());
     }
 
     public McpRequest executePreHandle(McpRequest request, InterceptorContext context) {

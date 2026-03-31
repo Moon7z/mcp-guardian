@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.Optional;
 
 @Component
 public class PolicyEvaluator {
@@ -48,19 +47,19 @@ public class PolicyEvaluator {
     }
 
     private boolean matchesRule(PolicyRule rule, String method, JsonNode params, String userRole) {
-        // Check method match
+        // Check method match using equals, not regex
         if (rule.methods() != null && !rule.methods().isEmpty()) {
             boolean methodMatch = rule.methods().stream()
-                    .anyMatch(m -> method != null && method.matches(m));
+                    .anyMatch(m -> method != null && method.equals(m));
             if (!methodMatch) {
                 return false;
             }
         }
 
-        // Check role exclusion (rule applies when user does NOT have required role)
-        if (rule.roles() != null && !rule.roles().isEmpty()) {
-            if (userRole != null && rule.roles().contains(userRole)) {
-                return false; // user has the required role, rule doesn't apply
+        // Check role exemption (rule does NOT apply when user has an exempt role)
+        if (rule.exemptRoles() != null && !rule.exemptRoles().isEmpty()) {
+            if (userRole != null && rule.exemptRoles().contains(userRole)) {
+                return false;
             }
         }
 

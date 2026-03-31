@@ -7,8 +7,6 @@ import com.guardian.dlp.pattern.SensitivePatterns;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -72,18 +70,27 @@ class DlpRedactorTest {
     }
 
     @Test
-    @DisplayName("Should redact password in config strings")
+    @DisplayName("Should redact password in config strings, preserving key name")
     void redactPasswordConfig() {
         var result = redactor.redactText("password=MyS3cretP@ss");
-        assertEquals("[REDACTED_BY_GUARDIAN]", result.redactedText());
+        assertEquals("password=[REDACTED_BY_GUARDIAN]", result.redactedText());
         assertTrue(result.detectedTypes().contains("PASSWORD_CONFIG"));
     }
 
     @Test
-    @DisplayName("Should redact database connection strings")
+    @DisplayName("Should redact password with colon separator")
+    void redactPasswordWithColon() {
+        var result = redactor.redactText("secret: my_secret_value");
+        assertEquals("secret: [REDACTED_BY_GUARDIAN]", result.redactedText());
+        assertTrue(result.detectedTypes().contains("PASSWORD_CONFIG"));
+    }
+
+    @Test
+    @DisplayName("Should redact database connection strings, preserving host")
     void redactDbConnectionString() {
         var result = redactor.redactText("jdbc://admin:password123@db.example.com:5432/mydb");
         assertFalse(result.redactedText().contains("password123"));
+        assertTrue(result.redactedText().contains("db.example.com"));
         assertTrue(result.redactedText().contains(SensitivePatterns.REDACTED));
     }
 
@@ -165,5 +172,11 @@ class DlpRedactorTest {
         String json = "{\"password\":\"password=secret123\"}";
         String redacted = redactor.redactJsonString(json);
         assertFalse(redacted.contains("secret123"));
+    }
+
+    @Test
+    @DisplayName("Should handle null JSON node")
+    void redactNullJsonNode() {
+        assertNull(redactor.redactJsonNode(null));
     }
 }

@@ -2,7 +2,9 @@ package com.guardian.policy.config;
 
 import com.guardian.policy.model.PolicyConfig;
 import com.guardian.policy.model.PolicyRule;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -11,7 +13,10 @@ import java.util.List;
 
 @Configuration
 @ComponentScan(basePackages = "com.guardian.policy")
+@EnableConfigurationProperties(PolicyProperties.class)
 public class PolicyAutoConfiguration {
+
+    private static final Logger log = LoggerFactory.getLogger(PolicyAutoConfiguration.class);
 
     @Bean
     public PolicyConfig policyConfig(PolicyProperties properties) {
@@ -20,17 +25,34 @@ public class PolicyAutoConfiguration {
 
         if (properties.getRules() != null) {
             rules = properties.getRules().stream()
-                    .map(r -> new PolicyRule(
-                            r.getName(), r.getDescription(),
-                            PolicyRule.Action.valueOf(r.getAction()),
-                            r.getMethods(), r.getKeywords(), r.getRoles()))
+                    .map(this::toRule)
                     .toList();
         }
 
         if (properties.getDefaultAction() != null) {
-            defaultAction = PolicyConfig.DefaultAction.valueOf(properties.getDefaultAction());
+            try {
+                defaultAction = PolicyConfig.DefaultAction.valueOf(
+                        properties.getDefaultAction().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid policy default-action '{}', falling back to ALLOW. " +
+                        "Valid values: ALLOW, DENY", properties.getDefaultAction());
+            }
         }
 
         return new PolicyConfig(rules, defaultAction);
+    }
+
+    private PolicyRule toRule(PolicyProperties.RuleProperties r) {
+        PolicyRule.Action action;
+        try {
+            action = PolicyRule.Action.valueOf(r.getAction().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid action '{}' in rule '{}', defaulting to DENY. " +
+                    "Valid values: ALLOW, DENY", r.getAction(), r.getName());
+            action = PolicyRule.Action.DENY;
+        }
+        return new PolicyRule(
+                r.getName(), r.getDescription(), action,
+                r.getMethods(), r.getKeywords(), r.getRoles());
     }
 }

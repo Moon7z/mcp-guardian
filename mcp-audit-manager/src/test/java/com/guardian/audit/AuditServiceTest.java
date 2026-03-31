@@ -49,6 +49,18 @@ class AuditServiceTest {
     }
 
     @Test
+    @DisplayName("getRecentRecords returns a defensive copy")
+    void recentRecordsDefensiveCopy() {
+        auditService.logAsync(AuditRecord.builder()
+                .traceId("t1").method("test").build());
+
+        var copy = auditService.getRecentRecords();
+        int sizeBefore = copy.size();
+        copy.clear(); // modifying copy should not affect internal state
+        assertEquals(sizeBefore, auditService.getRecentRecords().size());
+    }
+
+    @Test
     @DisplayName("AuditRecord builder defaults timestamp")
     void builderDefaultTimestamp() {
         var record = AuditRecord.builder()

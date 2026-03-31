@@ -23,7 +23,7 @@ public class McpRouter {
     }
 
     @PostConstruct
-    void init() {
+    public void init() {
         if (properties.servers() != null) {
             properties.servers().forEach((id, config) -> {
                 if (config.enabled()) {

@@ -20,19 +20,20 @@ public class PolicyInterceptor implements McpInterceptor {
 
     @Override
     public int getOrder() {
-        return 100; // runs first, before forwarding
+        return 100;
     }
 
     @Override
     public McpRequest preHandle(McpRequest request, InterceptorContext context) {
-        String userRole = context.getUserId(); // simplified; in production, resolve from JWT claims
+        String userRole = context.getUserRole();
 
         PolicyEvaluator.EvaluationResult result = evaluator.evaluate(
                 request.method(), request.params(), userRole);
 
         if (!result.allowed()) {
-            log.warn("Policy blocked request: method={}, rule={}, reason={}",
-                    request.method(), result.ruleName(), result.reason());
+            log.warn("Policy blocked request: method={}, rule={}, reason={}, user={}, role={}",
+                    request.method(), result.ruleName(), result.reason(),
+                    context.getUserId(), userRole);
             context.setAttribute("policy.blocked", true);
             context.setAttribute("policy.rule", result.ruleName());
             throw McpProxyException.policyViolation(result.reason());

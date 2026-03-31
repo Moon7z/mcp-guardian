@@ -1,7 +1,6 @@
 package com.guardian.core.transport;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.guardian.core.exception.McpProxyException;
 import com.guardian.core.interceptor.InterceptorChain;
@@ -22,6 +21,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+import java.util.Map;
+
 @Component
 public class SseTransport {
 
@@ -40,73 +41,117 @@ public class SseTransport {
     }
 
     public Flux<ServerSentEvent<String>> connectSse(String serverId, String sessionId, String userId) {
-        DownstreamServer server = router.resolve(serverId)
-                .orElseThrow(() -> new McpProxyException(
-                        McpError.invalidRequest("Unknown server: " + serverId)));
+        // Defer server resolution into the reactive chain to avoid sync throws
+        return Flux.defer(() -> {
+            DownstreamServer server = router.resolve(serverId)
+                    .orElseThrow(() -> new McpProxyException(
+                            McpError.invalidRequest("Unknown server: " + serverId)));
 
-        String sseUrl = server.url() + "/sse";
-        log.info("Establishing SSE connection to downstream: {} ({})", serverId, sseUrl);
+            String sseUrl = server.url() + "/sse";
+            log.info("Establishing SSE connection to downstream: {} ({})", serverId, sseUrl);
 
-        return webClient.get()
-                .uri(sseUrl)
-                .accept(MediaType.TEXT_EVENT_STREAM)
-                .retrieve()
-                .bodyToFlux(String.class)
-                .map(data -> ServerSentEvent.<String>builder().data(data).build())
-                .doOnSubscribe(s -> log.debug("SSE subscription started for server: {}", serverId))
-                .doOnTerminate(() -> log.debug("SSE connection terminated for server: {}", serverId))
-                .onErrorResume(WebClientResponseException.class, ex -> {
-                    log.error("SSE connection error for {}: {}", serverId, ex.getMessage());
-                    String errorJson = toErrorJson(null,
-                            McpError.serverUnreachable("Connection failed: " + ex.getStatusCode()));
-                    return Flux.just(ServerSentEvent.<String>builder()
-                            .event("error").data(errorJson).build());
-                })
-                .onErrorResume(Exception.class, ex -> {
-                    log.error("Unexpected SSE error for {}: {}", serverId, ex.getMessage(), ex);
-                    String errorJson = toErrorJson(null,
-                            McpError.internalError("Internal proxy error"));
-                    return Flux.just(ServerSentEvent.<String>builder()
-                            .event("error").data(errorJson).build());
-                });
+            return webClient.get()
+                    .uri(sseUrl)
+                    .accept(MediaType.TEXT_EVENT_STREAM)
+                    .retrieve()
+                    .bodyToFlux(new org.springframework.core.ParameterizedTypeReference<ServerSentEvent<String>>() {})
+                    .map(downstreamEvent -> {
+                        // Preserve event metadata from downstream
+                        ServerSentEvent.Builder<String> builder = ServerSentEvent.<String>builder();
+                        if (downstreamEvent.id() != null) {
+                            builder.id(downstreamEvent.id());
+                        }
+                        if (downstreamEvent.event() != null) {
+                            builder.event(downstreamEvent.event());
+                        }
+                        if (downstreamEvent.data() != null) {
+                            builder.data(downstreamEvent.data());
+                        }
+                        if (downstreamEvent.retry() != null) {
+                            builder.retry(downstreamEvent.retry());
+                        }
+                        if (downstreamEvent.comment() != null) {
+                            builder.comment(downstreamEvent.comment());
+                        }
+                        return builder.build();
+                    })
+                    .doOnSubscribe(s -> log.debug("SSE subscription started for server: {}", serverId))
+                    .doOnTerminate(() -> log.debug("SSE connection terminated for server: {}", serverId));
+        })
+        .onErrorResume(McpProxyException.class, ex -> {
+            log.warn("SSE connection rejected: {}", ex.getMessage());
+            String errorJson = toErrorJson(null, ex.getMcpError());
+            return Flux.just(ServerSentEvent.<String>builder()
+                    .event("error").data(errorJson).build());
+        })
+        .onErrorResume(WebClientResponseException.class, ex -> {
+            log.error("SSE connection error for {}: {}", serverId, ex.getMessage());
+            String errorJson = toErrorJson(null,
+                    McpError.serverUnreachable("Connection failed: " + ex.getStatusCode()));
+            return Flux.just(ServerSentEvent.<String>builder()
+                    .event("error").data(errorJson).build());
+        })
+        .onErrorResume(Exception.class, ex -> {
+            log.error("Unexpected SSE error for {}: {}", serverId, ex.getMessage(), ex);
+            String errorJson = toErrorJson(null,
+                    McpError.internalError("Internal proxy error"));
+            return Flux.just(ServerSentEvent.<String>builder()
+                    .event("error").data(errorJson).build());
+        });
     }
 
     public Mono<McpResponse> forwardRequest(String serverId, McpRequest request,
                                              String sessionId, String userId) {
-        DownstreamServer server = router.resolve(serverId)
-                .orElseThrow(() -> new McpProxyException(
-                        McpError.invalidRequest("Unknown server: " + serverId)));
+        // Defer server resolution into the reactive chain to avoid sync throws
+        return Mono.defer(() -> {
+            DownstreamServer server = router.resolve(serverId)
+                    .orElseThrow(() -> new McpProxyException(
+                            McpError.invalidRequest("Unknown server: " + serverId)));
 
-        InterceptorContext context = new InterceptorContext(sessionId, serverId, userId);
+            InterceptorContext context = new InterceptorContext(sessionId, serverId, userId);
 
-        return Mono.fromCallable(() -> interceptorChain.executePreHandle(request, context))
-                .subscribeOn(Schedulers.boundedElastic())
-                .flatMap(processedRequest -> {
-                    String messageUrl = server.url() + "/message";
-                    log.debug("Forwarding {} to {}", processedRequest.method(), messageUrl);
+            return Mono.fromCallable(() -> interceptorChain.executePreHandle(request, context))
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .flatMap(processedRequest -> {
+                        String messageUrl = server.url() + "/message";
+                        log.debug("Forwarding {} to {}", processedRequest.method(), messageUrl);
 
-                    return webClient.post()
-                            .uri(messageUrl)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .bodyValue(processedRequest)
-                            .retrieve()
-                            .bodyToMono(McpResponse.class);
-                })
-                .map(response -> interceptorChain.executePostHandle(request, response, context))
-                .onErrorResume(McpProxyException.class, ex -> {
-                    log.warn("Proxy exception: {}", ex.getMessage());
-                    return Mono.just(McpResponse.error(request.id(), ex.getMcpError()));
-                })
-                .onErrorResume(WebClientResponseException.class, ex -> {
-                    log.error("Downstream error for {}: {}", serverId, ex.getMessage());
-                    return Mono.just(McpResponse.error(request.id(),
-                            McpError.serverUnreachable("Downstream error: " + ex.getStatusCode())));
-                })
-                .onErrorResume(Exception.class, ex -> {
-                    log.error("Unexpected error forwarding to {}: {}", serverId, ex.getMessage(), ex);
-                    return Mono.just(McpResponse.error(request.id(),
-                            McpError.internalError("Internal proxy error")));
-                });
+                        return webClient.post()
+                                .uri(messageUrl)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .bodyValue(processedRequest)
+                                .retrieve()
+                                .bodyToMono(McpResponse.class);
+                    })
+                    .map(response -> interceptorChain.executePostHandle(request, response, context))
+                    .onErrorResume(McpProxyException.class, ex -> {
+                        log.warn("Proxy exception: {}", ex.getMessage());
+                        // Execute postHandle for audit even on policy-blocked requests
+                        McpResponse errorResponse = McpResponse.error(request.id(), ex.getMcpError());
+                        try {
+                            McpResponse audited = interceptorChain.executePostHandle(request, errorResponse, context);
+                            return Mono.just(audited);
+                        } catch (Exception auditEx) {
+                            log.error("Failed to audit policy-blocked request: {}", auditEx.getMessage());
+                            return Mono.just(errorResponse);
+                        }
+                    })
+                    .onErrorResume(WebClientResponseException.class, ex -> {
+                        log.error("Downstream error for {}: {}", serverId, ex.getMessage());
+                        McpResponse errorResponse = McpResponse.error(request.id(),
+                                McpError.serverUnreachable("Downstream error: " + ex.getStatusCode()));
+                        try {
+                            return Mono.just(interceptorChain.executePostHandle(request, errorResponse, context));
+                        } catch (Exception auditEx) {
+                            return Mono.just(errorResponse);
+                        }
+                    })
+                    .onErrorResume(Exception.class, ex -> {
+                        log.error("Unexpected error forwarding to {}: {}", serverId, ex.getMessage(), ex);
+                        return Mono.just(McpResponse.error(request.id(),
+                                McpError.internalError("Internal proxy error")));
+                    });
+        });
     }
 
     private String toErrorJson(Object id, McpError error) {

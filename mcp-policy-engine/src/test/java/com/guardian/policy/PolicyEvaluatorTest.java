@@ -45,7 +45,7 @@ class PolicyEvaluatorTest {
     }
 
     @Test
-    @DisplayName("Should allow DROP keyword for admin users")
+    @DisplayName("Should allow DROP keyword for admin users (exempt role)")
     void allowDropForAdmin() {
         var rule = new PolicyRule("block-sql", "Block destructive SQL",
                 PolicyRule.Action.DENY,
@@ -111,5 +111,57 @@ class PolicyEvaluatorTest {
 
         var result = evaluator.evaluate("tools/call", params, "developer");
         assertFalse(result.allowed());
+    }
+
+    @Test
+    @DisplayName("Should use equals() not regex for method matching")
+    void methodMatchUsesEqualsNotRegex() {
+        // "tools/call" should NOT be treated as regex — test with regex metacharacters
+        var rule = new PolicyRule("test-rule", "Test",
+                PolicyRule.Action.DENY,
+                List.of("tools/call[v2]"), List.of("drop"), List.of());
+
+        var evaluator = new PolicyEvaluator(configWith(rule));
+        ObjectNode params = objectMapper.createObjectNode();
+        params.put("query", "DROP TABLE users");
+
+        // Exact match should fail: method is "tools/callv2" which does not equal "tools/call[v2]"
+        var result = evaluator.evaluate("tools/callv2", params, "user");
+        assertTrue(result.allowed());
+
+        // Exact match should succeed
+        var result2 = evaluator.evaluate("tools/call[v2]", params, "user");
+        assertFalse(result2.allowed());
+    }
+
+    @Test
+    @DisplayName("Should handle null method gracefully")
+    void nullMethodDoesNotMatch() {
+        var rule = new PolicyRule("block-sql", "Block SQL",
+                PolicyRule.Action.DENY,
+                List.of("tools/call"), List.of("drop"), List.of("admin"));
+
+        var evaluator = new PolicyEvaluator(configWith(rule));
+        ObjectNode params = objectMapper.createObjectNode();
+        params.put("query", "DROP TABLE users");
+
+        var result = evaluator.evaluate(null, params, "developer");
+        assertTrue(result.allowed()); // null method won't match "tools/call"
+    }
+
+    @Test
+    @DisplayName("Should handle multiple exempt roles")
+    void multipleExemptRoles() {
+        var rule = new PolicyRule("block-sql", "Block SQL",
+                PolicyRule.Action.DENY,
+                List.of("tools/call"), List.of("drop"), List.of("admin", "dba"));
+
+        var evaluator = new PolicyEvaluator(configWith(rule));
+        ObjectNode params = objectMapper.createObjectNode();
+        params.put("query", "DROP TABLE users");
+
+        assertTrue(evaluator.evaluate("tools/call", params, "admin").allowed());
+        assertTrue(evaluator.evaluate("tools/call", params, "dba").allowed());
+        assertFalse(evaluator.evaluate("tools/call", params, "developer").allowed());
     }
 }

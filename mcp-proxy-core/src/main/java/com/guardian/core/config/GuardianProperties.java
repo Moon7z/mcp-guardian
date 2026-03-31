@@ -3,7 +3,6 @@ package com.guardian.core.config;
 import com.guardian.core.model.DownstreamServer;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import java.util.List;
 import java.util.Map;
 
 @ConfigurationProperties(prefix = "guardian")
@@ -24,13 +23,11 @@ public record GuardianProperties(
 
     public record ProxyConfig(
             int connectTimeoutMs,
-            int readTimeoutMs,
-            int maxRetries
+            int readTimeoutMs
     ) {
         public ProxyConfig {
             if (connectTimeoutMs <= 0) connectTimeoutMs = 5000;
             if (readTimeoutMs <= 0) readTimeoutMs = 30000;
-            if (maxRetries < 0) maxRetries = 2;
         }
     }
 }

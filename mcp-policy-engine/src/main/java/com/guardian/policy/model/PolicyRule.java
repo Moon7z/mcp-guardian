@@ -8,7 +8,7 @@ public record PolicyRule(
         Action action,
         List<String> methods,
         List<String> keywords,
-        List<String> roles
+        List<String> exemptRoles
 ) {
     public enum Action {
         DENY, ALLOW

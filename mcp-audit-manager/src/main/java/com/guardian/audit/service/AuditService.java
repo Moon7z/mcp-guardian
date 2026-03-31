@@ -8,8 +8,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.LinkedBlockingDeque;
 
 @Service
 public class AuditService {
@@ -17,7 +18,7 @@ public class AuditService {
     private static final Logger auditLog = LoggerFactory.getLogger("AUDIT");
     private static final Logger log = LoggerFactory.getLogger(AuditService.class);
     private final ObjectMapper objectMapper;
-    private final Queue<AuditRecord> recentRecords = new ConcurrentLinkedQueue<>();
+    private final LinkedBlockingDeque<AuditRecord> recentRecords = new LinkedBlockingDeque<>(MAX_RECENT);
     private static final int MAX_RECENT = 1000;
 
     public AuditService(ObjectMapper objectMapper) {
@@ -36,13 +37,13 @@ public class AuditService {
                     record.method(), record.durationMs(), record.policyBlocked(), record.dlpRedacted());
         }
 
-        recentRecords.offer(record);
-        while (recentRecords.size() > MAX_RECENT) {
-            recentRecords.poll();
+        // Thread-safe bounded buffer: remove oldest if full
+        while (!recentRecords.offerLast(record)) {
+            recentRecords.pollFirst();
         }
     }
 
-    public Queue<AuditRecord> getRecentRecords() {
-        return recentRecords;
+    public List<AuditRecord> getRecentRecords() {
+        return new ArrayList<>(recentRecords);
     }
 }

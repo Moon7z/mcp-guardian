@@ -17,7 +17,6 @@ guardian:
   proxy:
     connect-timeout-ms: 5000
     read-timeout-ms: 30000
-    max-retries: 2
 
   # Downstream MCP Server Registry
   servers:
@@ -50,6 +49,7 @@ guardian:
           - "drop"
           - "truncate"
           - "delete from"
+        # Roles exempt from this rule (users with these roles are allowed)
         roles:
           - "admin"
           - "dba"
@@ -66,10 +66,10 @@ guardian:
         roles:
           - "admin"
 
-# Structured JSON logging for ELK/Aliyun SLS
+# Logging — use %replace to escape embedded quotes for JSON safety
 logging:
   pattern:
-    console: '{"timestamp":"%d{ISO8601}","level":"%p","logger":"%c","thread":"%t","message":"%m"}%n'
+    console: '{"timestamp":"%d{ISO8601}","level":"%p","logger":"%c","thread":"%t","message":"%replace(%m){"\"","\\\""}"}%n'
   level:
     root: INFO
     com.guardian: DEBUG

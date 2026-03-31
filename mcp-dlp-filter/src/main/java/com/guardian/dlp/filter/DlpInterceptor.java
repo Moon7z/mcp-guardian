@@ -20,12 +20,17 @@ public class DlpInterceptor implements McpInterceptor {
 
     @Override
     public int getOrder() {
-        return 300; // post-handle runs in reverse order, so higher = runs first
+        return 300;
     }
 
     @Override
     public McpResponse postHandle(McpRequest request, McpResponse response, InterceptorContext context) {
-        if (response == null || response.result() == null) {
+        if (response == null) {
+            return null;
+        }
+
+        if (response.result() == null) {
+            context.setAttribute("dlp.redacted", false);
             return response;
         }
 
@@ -39,6 +44,7 @@ public class DlpInterceptor implements McpInterceptor {
                     context.getSessionId(), context.getServerId());
         }
 
-        return McpResponse.success(response.id(), redactedResult);
+        // Preserve the error field if present
+        return new McpResponse(response.jsonrpc(), response.id(), redactedResult, response.error());
     }
 }

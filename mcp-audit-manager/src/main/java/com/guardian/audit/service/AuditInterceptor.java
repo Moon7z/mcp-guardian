@@ -23,16 +23,16 @@ public class AuditInterceptor implements McpInterceptor {
 
     @Override
     public int getOrder() {
-        return 200; // post-handle runs in reverse order, so lower = runs after DLP
+        return 200;
     }
 
     @Override
     public McpResponse postHandle(McpRequest request, McpResponse response, InterceptorContext context) {
         long durationMs = Duration.between(context.getTimestamp(), Instant.now()).toMillis();
 
-        Boolean policyBlocked = context.getAttribute("policy.blocked");
-        String policyRule = context.getAttribute("policy.rule");
-        Boolean dlpRedacted = context.getAttribute("dlp.redacted");
+        Boolean policyBlocked = context.getAttribute("policy.blocked", Boolean.class);
+        String policyRule = context.getAttribute("policy.rule", String.class);
+        Boolean dlpRedacted = context.getAttribute("dlp.redacted", Boolean.class);
 
         AuditRecord record = AuditRecord.builder()
                 .traceId(UUID.randomUUID().toString())
@@ -41,7 +41,7 @@ public class AuditInterceptor implements McpInterceptor {
                 .serverId(context.getServerId())
                 .method(request.method())
                 .paramsSummary(summarize(request.params()))
-                .resultSummary(summarize(response.result()))
+                .resultSummary(response != null ? summarize(response.result()) : null)
                 .policyBlocked(policyBlocked != null && policyBlocked)
                 .policyRule(policyRule)
                 .dlpRedacted(dlpRedacted != null && dlpRedacted)
