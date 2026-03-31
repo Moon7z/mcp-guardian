@@ -287,18 +287,6 @@ GET /mcp/health
 
 ---
 
-## 开发计划
-
-- [ ] JWT 认证完整实现（当前为 permitAll 开发模式）
-- [ ] 下游 Server 健康检查与自动熔断
-- [ ] DLP 自定义规则（支持用户自定义正则模式）
-- [ ] Web 管理控制台（策略管理、审计查询、服务监控）
-- [ ] 支持 Stdio 传输协议
-- [ ] Docker 镜像 & Helm Chart
-- [ ] Prometheus 指标暴露
-
----
-
 ## 许可证
 
 MIT License
