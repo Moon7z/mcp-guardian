@@ -1,13 +1,13 @@
 package com.guardian.gateway.security;
 
+import com.guardian.core.transport.McpProxyController;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,20 +33,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = extractToken(request);
 
-        if (token != null && tokenProvider.validateToken(token)) {
-            String userId = tokenProvider.getUserId(token);
-            String sessionId = tokenProvider.getSessionId(token);
-            List<String> roles = tokenProvider.getRoles(token);
+        if (token != null) {
+            try {
+                Claims claims = tokenProvider.parseClaimsFromToken(token);
+                String userId = claims.getSubject();
+                String sessionId = claims.get("sessionId", String.class);
+                @SuppressWarnings("unchecked")
+                List<String> roles = claims.get("roles") instanceof List<?> list
+                        ? (List<String>) list : List.of();
 
-            var authorities = roles.stream()
-                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
-                    .toList();
+                var authorities = roles.stream()
+                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
+                        .toList();
 
-            var authentication = new UsernamePasswordAuthenticationToken(userId, null, authorities);
-            authentication.setDetails(new JwtAuthDetails(userId, sessionId, roles));
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+                var authentication = new UsernamePasswordAuthenticationToken(userId, null, authorities);
+                String primaryRole = roles.isEmpty() ? null : roles.get(0).toLowerCase();
+                authentication.setDetails(new JwtAuthDetails(userId, sessionId, roles, primaryRole));
+                SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            log.debug("Authenticated user: {}, roles: {}, session: {}", userId, roles, sessionId);
+                log.debug("Authenticated user: {}, roles: {}, session: {}", userId, roles, sessionId);
+            } catch (Exception e) {
+                log.debug("JWT authentication failed: {}", e.getMessage());
+            }
         }
 
         filterChain.doFilter(request, response);
@@ -60,5 +68,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return null;
     }
 
-    public record JwtAuthDetails(String userId, String sessionId, List<String> roles) {}
+    public record JwtAuthDetails(
+            String userId,
+            String sessionId,
+            List<String> roles,
+            String userRole
+    ) implements McpProxyController.AuthDetails {}
 }

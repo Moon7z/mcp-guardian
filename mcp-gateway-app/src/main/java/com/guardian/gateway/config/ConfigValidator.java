@@ -115,9 +115,16 @@ public class ConfigValidator {
             log.warn("JWT secret is too short (min 32 bytes required)");
         }
 
-        // Warn if using default secret
-        if (secret != null && secret.contains("default-secret")) {
-            log.warn("JWT secret appears to be a default value - change it in production!");
+        // Block startup in prod if using default secret
+        boolean isProd = Arrays.asList(environment.getActiveProfiles()).contains("prod");
+        if (secret != null && (secret.contains("default-secret")
+                || secret.contains("change-in-production")
+                || secret.contains("change-this-secret"))) {
+            if (isProd) {
+                throw new IllegalStateException(
+                        "JWT secret must be changed in production! Set the JWT_SECRET environment variable.");
+            }
+            log.warn("JWT secret appears to be a default value - change it before deploying to production!");
         }
 
         // Log expiration (without exposing the secret)

@@ -44,15 +44,22 @@ public class PolicyAutoConfiguration {
 
     private PolicyRule toRule(PolicyProperties.RuleProperties r) {
         PolicyRule.Action action;
-        try {
-            action = PolicyRule.Action.valueOf(r.getAction().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            log.warn("Invalid action '{}' in rule '{}', defaulting to DENY. " +
-                    "Valid values: ALLOW, DENY", r.getAction(), r.getName());
+        if (r.getAction() == null) {
+            log.warn("Missing action in rule '{}', defaulting to DENY", r.getName());
             action = PolicyRule.Action.DENY;
+        } else {
+            try {
+                action = PolicyRule.Action.valueOf(r.getAction().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid action '{}' in rule '{}', defaulting to DENY. " +
+                        "Valid values: ALLOW, DENY", r.getAction(), r.getName());
+                action = PolicyRule.Action.DENY;
+            }
         }
         return new PolicyRule(
                 r.getName(), r.getDescription(), action,
-                r.getMethods(), r.getKeywords(), r.getRoles());
+                r.getMethods() != null ? r.getMethods() : List.of(),
+                r.getKeywords() != null ? r.getKeywords() : List.of(),
+                r.getExemptRoles() != null ? r.getExemptRoles() : List.of());
     }
 }

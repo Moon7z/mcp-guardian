@@ -37,8 +37,7 @@ public class SecurityConfig {
                             response.setStatus(HttpStatus.UNAUTHORIZED.value());
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.getWriter().write(
-                                    "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32600,\"message\":\"Unauthorized: " +
-                                    authException.getMessage().replace("\"", "'") + "\"}}");
+                                    "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32600,\"message\":\"Unauthorized\"}}");
                         })
                 )
                 .authorizeHttpRequests(auth -> auth
