@@ -36,6 +36,13 @@ guardian:
       health-check-url: "http://localhost:3003/health"
       enabled: false
 
+  # JWT Authentication
+  jwt:
+    secret: ${JWT_SECRET:mcp-guardian-default-secret-key-change-in-production-min-32-bytes}
+    expiration-ms: ${JWT_EXPIRATION:86400000}  # 24 hours
+    header: Authorization
+    prefix: "Bearer "
+
   # Policy Engine Rules
   policy:
     default-action: ALLOW
