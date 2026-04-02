@@ -57,7 +57,7 @@ guardian:
           - "drop"
           - "truncate"
           - "delete from"
-        roles:
+        exempt-roles:
           - "admin"
           - "dba"
 
@@ -70,7 +70,7 @@ guardian:
           - "delete_file"
           - "rm -rf"
           - "remove_directory"
-        roles:
+        exempt-roles:
           - "admin"
 
 # Logging

@@ -21,7 +21,7 @@ public class PolicyProperties {
         private String action;
         private List<String> methods;
         private List<String> keywords;
-        private List<String> roles;
+        private List<String> exemptRoles;
 
         public String getName() { return name; }
         public void setName(String name) { this.name = name; }
@@ -33,7 +33,7 @@ public class PolicyProperties {
         public void setMethods(List<String> methods) { this.methods = methods; }
         public List<String> getKeywords() { return keywords; }
         public void setKeywords(List<String> keywords) { this.keywords = keywords; }
-        public List<String> getRoles() { return roles; }
-        public void setRoles(List<String> roles) { this.roles = roles; }
+        public List<String> getExemptRoles() { return exemptRoles; }
+        public void setExemptRoles(List<String> exemptRoles) { this.exemptRoles = exemptRoles; }
     }
 }
