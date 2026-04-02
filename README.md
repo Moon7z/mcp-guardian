@@ -1,4 +1,4 @@
-# MCP Guardian
+# MCP Sentinel
 
 **企业级 MCP 安全代理网关** — 为 Model Context Protocol 生态提供安全合规、权限管控与审计追踪能力。
 
