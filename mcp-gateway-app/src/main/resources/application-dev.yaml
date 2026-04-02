@@ -1,0 +1,30 @@
+# ==========================================
+# MCP Guardian - Development Profile
+# ==========================================
+server:
+  port: 8080
+
+guardian:
+  proxy:
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+
+  servers:
+    db-tools:
+      url: http://localhost:3001
+      health-check-url: http://localhost:3001/health
+      enabled: true
+    file-tools:
+      url: http://localhost:3002
+      health-check-url: http://localhost:3002/health
+      enabled: true
+    code-tools:
+      url: http://localhost:3003
+      health-check-url: http://localhost:3003/health
+      enabled: false
+
+logging:
+  level:
+    root: INFO
+    com.guardian: DEBUG
+    AUDIT: INFO

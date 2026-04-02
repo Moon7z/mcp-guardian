@@ -1,10 +1,11 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
 
 spring:
   application:
     name: mcp-guardian
-  # threads.virtual.enabled: true  # Uncomment when running on Java 21+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   jackson:
     serialization:
       write-dates-as-timestamps: false
@@ -15,37 +16,37 @@ spring:
 # ==========================================
 guardian:
   proxy:
-    connect-timeout-ms: 5000
-    read-timeout-ms: 30000
+    connect-timeout-ms: ${GUARDIAN_CONNECT_TIMEOUT:5000}
+    read-timeout-ms: ${GUARDIAN_READ_TIMEOUT:30000}
 
   # Downstream MCP Server Registry
   servers:
     db-tools:
       name: "Database Tools Server"
-      url: "http://localhost:3001"
-      health-check-url: "http://localhost:3001/health"
-      enabled: true
+      url: ${GUARDIAN_DB_TOOLS_URL:http://localhost:3001}
+      health-check-url: ${GUARDIAN_DB_TOOLS_HEALTH_URL:http://localhost:3001/health}
+      enabled: ${GUARDIAN_DB_TOOLS_ENABLED:true}
     file-tools:
       name: "File System Tools Server"
-      url: "http://localhost:3002"
-      health-check-url: "http://localhost:3002/health"
-      enabled: true
+      url: ${GUARDIAN_FILE_TOOLS_URL:http://localhost:3002}
+      health-check-url: ${GUARDIAN_FILE_TOOLS_HEALTH_URL:http://localhost:3002/health}
+      enabled: ${GUARDIAN_FILE_TOOLS_ENABLED:true}
     code-tools:
       name: "Code Analysis Tools Server"
-      url: "http://localhost:3003"
-      health-check-url: "http://localhost:3003/health"
-      enabled: false
+      url: ${GUARDIAN_CODE_TOOLS_URL:http://localhost:3003}
+      health-check-url: ${GUARDIAN_CODE_TOOLS_HEALTH_URL:http://localhost:3003/health}
+      enabled: ${GUARDIAN_CODE_TOOLS_ENABLED:false}
 
   # JWT Authentication
   jwt:
     secret: ${JWT_SECRET:mcp-guardian-default-secret-key-change-in-production-min-32-bytes}
-    expiration-ms: ${JWT_EXPIRATION:86400000}  # 24 hours
+    expiration-ms: ${JWT_EXPIRATION:86400000}
     header: Authorization
     prefix: "Bearer "
 
   # Policy Engine Rules
   policy:
-    default-action: ALLOW
+    default-action: ${GUARDIAN_POLICY_DEFAULT_ACTION:ALLOW}
     rules:
       - name: "block-destructive-sql"
         description: "Block DROP/TRUNCATE commands for non-admin users"
@@ -56,7 +57,6 @@ guardian:
           - "drop"
           - "truncate"
           - "delete from"
-        # Roles exempt from this rule (users with these roles are allowed)
         roles:
           - "admin"
           - "dba"
@@ -73,11 +73,11 @@ guardian:
         roles:
           - "admin"
 
-# Logging — use %replace to escape embedded quotes for JSON safety
+# Logging
 logging:
   pattern:
     console: '{"timestamp":"%d{ISO8601}","level":"%p","logger":"%c","thread":"%t","message":"%replace(%m){"\"","\\\""}"}%n'
   level:
-    root: INFO
-    com.guardian: DEBUG
+    root: ${LOG_LEVEL:INFO}
+    com.guardian: ${GUARDIAN_LOG_LEVEL:DEBUG}
     AUDIT: INFO

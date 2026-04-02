@@ -1,0 +1,30 @@
+# ==========================================
+# MCP Guardian - Test Profile
+# ==========================================
+server:
+  port: 8081
+
+guardian:
+  proxy:
+    connect-timeout-ms: 3000
+    read-timeout-ms: 10000
+
+  servers:
+    db-tools:
+      url: http://test-db-tools:3001
+      health-check-url: http://test-db-tools:3001/health
+      enabled: true
+    file-tools:
+      url: http://test-file-tools:3002
+      health-check-url: http://test-file-tools:3002/health
+      enabled: true
+    code-tools:
+      url: http://test-code-tools:3003
+      health-check-url: http://test-code-tools:3003/health
+      enabled: false
+
+logging:
+  level:
+    root: WARN
+    com.guardian: INFO
+    AUDIT: INFO

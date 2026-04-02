@@ -1,0 +1,30 @@
+# ==========================================
+# MCP Guardian - Production Profile
+# ==========================================
+server:
+  port: ${SERVER_PORT:8080}
+
+guardian:
+  proxy:
+    connect-timeout-ms: ${GUARDIAN_CONNECT_TIMEOUT:10000}
+    read-timeout-ms: ${GUARDIAN_READ_TIMEOUT:60000}
+
+  servers:
+    db-tools:
+      url: ${GUARDIAN_DB_TOOLS_URL:http://prod-db-tools:3001}
+      health-check-url: ${GUARDIAN_DB_TOOLS_HEALTH_URL:http://prod-db-tools:3001/health}
+      enabled: ${GUARDIAN_DB_TOOLS_ENABLED:true}
+    file-tools:
+      url: ${GUARDIAN_FILE_TOOLS_URL:http://prod-file-tools:3002}
+      health-check-url: ${GUARDIAN_FILE_TOOLS_HEALTH_URL:http://prod-file-tools:3002/health}
+      enabled: ${GUARDIAN_FILE_TOOLS_ENABLED:true}
+    code-tools:
+      url: ${GUARDIAN_CODE_TOOLS_URL:http://prod-code-tools:3003}
+      health-check-url: ${GUARDIAN_CODE_TOOLS_HEALTH_URL:http://prod-code-tools:3003/health}
+      enabled: ${GUARDIAN_CODE_TOOLS_ENABLED:false}
+
+logging:
+  level:
+    root: WARN
+    com.guardian: WARN
+    AUDIT: INFO
