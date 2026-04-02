@@ -1,6 +1,7 @@
 package com.guardian.audit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.guardian.audit.model.AuditRecord;
 import com.guardian.audit.service.AuditService;
 import org.junit.jupiter.api.DisplayName;
@@ -12,7 +13,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class AuditServiceTest {
 
-    private final AuditService auditService = new AuditService(new ObjectMapper());
+    private static ObjectMapper createObjectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
+        return mapper;
+    }
+
+    private final AuditService auditService = new AuditService(createObjectMapper());
 
     @Test
     @DisplayName("Should log audit record without exception")

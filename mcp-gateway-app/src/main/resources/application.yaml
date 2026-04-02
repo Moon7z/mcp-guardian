@@ -81,3 +81,12 @@ logging:
     root: ${LOG_LEVEL:INFO}
     com.guardian: ${GUARDIAN_LOG_LEVEL:DEBUG}
     AUDIT: INFO
+
+# OpenAPI / Swagger UI
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: method

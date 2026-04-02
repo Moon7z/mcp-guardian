@@ -43,6 +43,8 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/mcp/health").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html",
+                                "/v3/api-docs/**", "/v3/api-docs").permitAll()
                         .requestMatchers("/mcp/**").hasAnyRole("USER", "ADMIN")
                         .anyRequest().authenticated()
                 )
